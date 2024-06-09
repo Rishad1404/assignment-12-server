@@ -24,7 +24,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-
+    const postCollection = client.db('topicTalk').collection('posts')
     const usersCollection = client.db('topicTalk').collection('users');
 
     // JWT token
@@ -38,7 +38,7 @@ async function run() {
 
     // MiddleWares
     const verifyToken = (req, res, next) => {
-      console.log('inside verify token', req.headers.authorization);
+      // console.log('inside verify token', req.headers.authorization);
 
       if (!req.headers.authorization) {
         return res.status(401).send({ message: 'unauthorized access' });
@@ -48,7 +48,7 @@ async function run() {
         if (err) {
           return res.status(401).send({ message: 'unauthorized Access' });
         }
-        req.decoded = decoded; 
+        req.decoded = decoded;
         next();
       });
     };
@@ -91,12 +91,12 @@ async function run() {
       res.send({ admin });
     });
 
-    app.get('/users', verifyToken,verifyAdmin, async (req, res) => {
+    app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
 
-    app.patch('/users/admin/:id',verifyToken,verifyAdmin, async (req, res) => {
+    app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) }
       const updatedDoc = {
@@ -108,10 +108,30 @@ async function run() {
       res.send(result)
     })
 
-    app.delete('/users/:id',verifyToken,verifyAdmin, async (req, res) => {
+
+    app.get('/user/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.findOne(query);
+      res.send(result)
+    })
+
+    app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    })
+
+    // Post related API
+    app.post('/posts', async (req, res) => {
+      const post = req.body;
+      const result = await postCollection.insertOne(post);
+      res.send(result);
+    });
+
+    app.get('/posts',async(req,res)=>{
+      const result = await postCollection.find().toArray();
       res.send(result);
     })
 
