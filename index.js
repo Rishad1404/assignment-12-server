@@ -131,8 +131,22 @@ async function run() {
     });
 
     app.get('/posts',async(req,res)=>{
-      const result = await postCollection.find().toArray();
+      const page=parseInt(req.query.page);
+      const size=parseInt(req.query.size);
+      const result = await postCollection.find().skip(page*size).limit(size).toArray();
       res.send(result);
+    })
+
+    app.get('/post/:id',async(req,res)=>{
+      const id=req.params.id
+      const query={_id:new ObjectId(id)}
+      const result = await postCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get('/postsCount',async(req,res)=>{
+      const count=await postCollection.estimatedDocumentCount();
+      res.send({count})
     })
 
 
