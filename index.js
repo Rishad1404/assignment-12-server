@@ -1,6 +1,7 @@
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express');
 const cors = require('cors');
+const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config()
@@ -8,6 +9,7 @@ const port = process.env.PORT || 5000;
 
 // MiddleWare
 app.use(cors())
+app.use(bodyParser.json());
 app.use(express.json())
 
 
@@ -130,23 +132,32 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/posts',async(req,res)=>{
-      const page=parseInt(req.query.page);
-      const size=parseInt(req.query.size);
-      const result = await postCollection.find().skip(page*size).limit(size).toArray();
+    app.get('/posts', async (req, res) => {
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      const search = req.query.search;
+      const query = {
+        postTag: { $regex: search, $options: 'i' }
+      }
+
+      const result = await postCollection.find(query).skip(page * size).limit(size).toArray();
       res.send(result);
     })
 
-    app.get('/post/:id',async(req,res)=>{
-      const id=req.params.id
-      const query={_id:new ObjectId(id)}
+    app.get('/post/:id', async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
       const result = await postCollection.findOne(query);
       res.send(result);
     });
 
-    app.get('/postsCount',async(req,res)=>{
-      const count=await postCollection.estimatedDocumentCount();
-      res.send({count})
+    app.get('/postsCount', async (req, res) => {
+      const search = req.query.search;
+      const query = {
+        postTag: { $regex: search, $options: 'i' }
+      }
+      const count = await postCollection.estimatedDocumentCount(query);
+      res.send({ count })
     })
 
 
