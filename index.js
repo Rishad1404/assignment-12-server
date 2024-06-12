@@ -30,6 +30,8 @@ async function run() {
     const postCollection = client.db('topicTalk').collection('posts')
     const usersCollection = client.db('topicTalk').collection('users');
     const announcementCollection = client.db('topicTalk').collection('announcements');
+    const commentsCollection = client.db('topicTalk').collection('comments');
+
 
     // JWT token
     app.post('/jwt', async (req, res) => {
@@ -93,8 +95,14 @@ async function run() {
       const options={upsert:true};
       const query = { email: user?.email };
       const existingUser = await usersCollection.findOne(query);
-      if (existingUser) {
-        return res.send({ message: 'User already Exists', insertedId: null });
+
+      if(existingUser){
+        if(user.badge==='gold'){
+          const result=await usersCollection.updateOne(query,{$set:{badge:user?.badge}})
+          return res.send(result)
+        }
+      }else{
+        return res.send(existingUser)
       }
       const updateDoc={
         $set:{
@@ -232,6 +240,19 @@ async function run() {
       const result = await announcementCollection.find().toArray();
       res.send(result)
     })
+
+    // Comment related---------------------------------------------------------------------------------------------------------------------\
+    app.post('/comments',async(req,res)=>{
+      const comment=req.body;
+      const result=await commentsCollection.insertOne(comment)
+      res.send(result)
+    })
+    app.get('/comments', async (req, res) => {
+      const { postId } = req.query;
+      const query = { postId: postId };
+      const result = await commentsCollection.find(query).toArray();
+      res.send(result);
+  });
 
 
     // Connect the client to the server	(optional starting in v4.7)
