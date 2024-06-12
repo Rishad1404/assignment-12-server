@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config()
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // MiddleWare
@@ -67,15 +68,40 @@ async function run() {
       next();
     };
 
-    // User related
-    app.post('/users', async (req, res) => {
+    // Create payment Intent---------------------------------------------------------------------------------------------------------------
+    app.post('/create-payment-intent',verifyToken,async(req,res)=>{
+      const price=req.body.price;
+      const priceInCent=parseFloat(price)*100;
+      if(!price || priceInCent<1) return;
+      // Generate client secret
+      const {client_secret}=await stripe.paymentIntents.create({
+        amount:priceInCent,
+        currency:'usd',
+
+        automatic_payment_methods:{
+          enabled:true,
+        },
+
+      })
+      // Send client secret as response
+      res.send({clientSecret:client_secret})
+    })  
+
+    // User related--------------------------------------------------------------------------------------------------
+    app.put('/users', async (req, res) => {
       const user = req.body;
-      const query = { email: user.email };
+      const options={upsert:true};
+      const query = { email: user?.email };
       const existingUser = await usersCollection.findOne(query);
       if (existingUser) {
         return res.send({ message: 'User already Exists', insertedId: null });
       }
-      const result = await usersCollection.insertOne(user);
+      const updateDoc={
+        $set:{
+          ...user,
+        }
+      }
+      const result = await usersCollection.updateOne(query,updateDoc,options);
       res.send(result);
     });
 
@@ -84,7 +110,6 @@ async function run() {
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: 'forbidden Access' });
       }
-
       const query = { email: email };
       const user = await usersCollection.findOne(query);
       let admin = false;
@@ -147,7 +172,7 @@ async function run() {
       res.send(result);
     })
 
-    // Post related API
+    // Post related API---------------------------------------------------------------------------------------------------
     app.post('/posts', async (req, res) => {
       const post = req.body;
       const result = await postCollection.insertOne(post);
