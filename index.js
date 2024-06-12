@@ -28,6 +28,7 @@ async function run() {
   try {
     const postCollection = client.db('topicTalk').collection('posts')
     const usersCollection = client.db('topicTalk').collection('users');
+    const announcementCollection = client.db('topicTalk').collection('announcements');
 
     // JWT token
     app.post('/jwt', async (req, res) => {
@@ -94,9 +95,24 @@ async function run() {
     });
 
     app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
-      const result = await usersCollection.find().toArray();
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      const search = req.query.search;
+      const query = {
+        name: { $regex: search, $options: 'i' }
+      }
+      const result = await usersCollection.find(query).skip(page * size).limit(size).toArray();
       res.send(result);
     });
+
+    app.get('/usersCount', async (req, res) => {
+      const search = req.query.search;
+      const query = {
+        name: { $regex: search, $options: 'i' }
+      }
+      const count = await usersCollection.estimatedDocumentCount(query);
+      res.send({ count })
+    })
 
     app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -117,6 +133,12 @@ async function run() {
       const result = await usersCollection.findOne(query);
       res.send(result)
     })
+    app.get('/mainUser',verifyToken, async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
 
     app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -132,6 +154,22 @@ async function run() {
       res.send(result);
     });
 
+          
+    app.get('/myPosts',verifyToken, async (req, res) => {
+      const email = req.query.email;
+      const query = { authorEmail: email };
+      const result = await postCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete('/myPosts/:id', verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await postCollection.deleteOne(query);
+      res.send(result);
+    })
+
+
     app.get('/posts', async (req, res) => {
       const page = parseInt(req.query.page);
       const size = parseInt(req.query.size);
@@ -139,7 +177,6 @@ async function run() {
       const query = {
         postTag: { $regex: search, $options: 'i' }
       }
-
       const result = await postCollection.find(query).skip(page * size).limit(size).toArray();
       res.send(result);
     })
@@ -158,6 +195,17 @@ async function run() {
       }
       const count = await postCollection.estimatedDocumentCount(query);
       res.send({ count })
+    })
+
+    // AnnounceMents related 
+    app.post('/announcements', async (req, res) => {
+      const announcement = req.body;
+      const result = await announcementCollection.insertOne(announcement);
+      res.send(result);
+    });
+    app.get('/announcements', async (req, res) => {
+      const result = await announcementCollection.find().toArray();
+      res.send(result)
     })
 
 
