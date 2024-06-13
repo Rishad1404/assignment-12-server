@@ -71,45 +71,45 @@ async function run() {
     };
 
     // Create payment Intent---------------------------------------------------------------------------------------------------------------
-    app.post('/create-payment-intent',verifyToken,async(req,res)=>{
-      const price=req.body.price;
-      const priceInCent=parseFloat(price)*100;
-      if(!price || priceInCent<1) return;
+    app.post('/create-payment-intent', verifyToken, async (req, res) => {
+      const price = req.body.price;
+      const priceInCent = parseFloat(price) * 100;
+      if (!price || priceInCent < 1) return;
       // Generate client secret
-      const {client_secret}=await stripe.paymentIntents.create({
-        amount:priceInCent,
-        currency:'usd',
+      const { client_secret } = await stripe.paymentIntents.create({
+        amount: priceInCent,
+        currency: 'usd',
 
-        automatic_payment_methods:{
-          enabled:true,
+        automatic_payment_methods: {
+          enabled: true,
         },
 
       })
       // Send client secret as response
-      res.send({clientSecret:client_secret})
-    })  
+      res.send({ clientSecret: client_secret })
+    })
 
     // User related--------------------------------------------------------------------------------------------------
     app.put('/users', async (req, res) => {
       const user = req.body;
-      const options={upsert:true};
+      const options = { upsert: true };
       const query = { email: user?.email };
       const existingUser = await usersCollection.findOne(query);
 
-      if(existingUser){
-        if(user.badge==='gold'){
-          const result=await usersCollection.updateOne(query,{$set:{badge:user?.badge}})
+      if (existingUser) {
+        if (user.badge === 'gold') {
+          const result = await usersCollection.updateOne(query, { $set: { badge: user?.badge } })
           return res.send(result)
         }
-      }else{
+      } else {
         return res.send(existingUser)
       }
-      const updateDoc={
-        $set:{
+      const updateDoc = {
+        $set: {
           ...user,
         }
       }
-      const result = await usersCollection.updateOne(query,updateDoc,options);
+      const result = await usersCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
 
@@ -166,7 +166,7 @@ async function run() {
       const result = await usersCollection.findOne(query);
       res.send(result)
     })
-    app.get('/mainUser',verifyToken, async (req, res) => {
+    app.get('/mainUser', verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const result = await usersCollection.find(query).toArray();
@@ -187,8 +187,8 @@ async function run() {
       res.send(result);
     });
 
-          
-    app.get('/myPosts',verifyToken, async (req, res) => {
+
+    app.get('/myPosts', verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { authorEmail: email };
       const result = await postCollection.find(query).toArray();
@@ -242,9 +242,9 @@ async function run() {
     })
 
     // Comment related---------------------------------------------------------------------------------------------------------------------\
-    app.post('/comments',async(req,res)=>{
-      const comment=req.body;
-      const result=await commentsCollection.insertOne(comment)
+    app.post('/comments', async (req, res) => {
+      const comment = req.body;
+      const result = await commentsCollection.insertOne(comment)
       res.send(result)
     })
     app.get('/comments', async (req, res) => {
@@ -253,6 +253,27 @@ async function run() {
       const result = await commentsCollection.find(query).toArray();
       res.send(result);
   });
+
+  app.get('/comment', verifyToken, async (req, res) => {
+    const postTitle = req.query.postTitle;
+    const query = { title: postTitle };
+    const result = await commentsCollection.find(query).toArray();
+    res.send(result);
+  });
+
+  // Stats or analytics
+  app.get('/admin-stats',verifyToken,verifyAdmin,async(req,res)=>{
+    const users=await usersCollection.estimatedDocumentCount();
+    const posts=await postCollection.estimatedDocumentCount();
+    const comments=await commentsCollection.estimatedDocumentCount();
+    res.send({
+      users,
+      posts,
+      comments
+    })
+  })
+
+
 
 
     // Connect the client to the server	(optional starting in v4.7)
