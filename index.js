@@ -31,6 +31,7 @@ async function run() {
     const usersCollection = client.db('topicTalk').collection('users');
     const announcementCollection = client.db('topicTalk').collection('announcements');
     const commentsCollection = client.db('topicTalk').collection('comments');
+    const tagsCollection = client.db('topicTalk').collection('tags');
 
 
     // JWT token
@@ -230,6 +231,17 @@ async function run() {
       res.send({ count })
     })
 
+    // Tag related---------------------------------------------------------------------------------------------------------------------
+    app.post('/tags',async(req,res)=>{
+      const tag=req.body;
+      const result=await tagsCollection.insertOne(tag);
+      res.send(result)
+    })
+    app.get('/tags', async (req, res) => {
+      const tags = await tagsCollection.find().toArray();
+      res.send(tags);
+  });
+
     // AnnounceMents related 
     app.post('/announcements', async (req, res) => {
       const announcement = req.body;
@@ -254,12 +266,26 @@ async function run() {
       res.send(result);
   });
 
-  app.get('/comment', verifyToken, async (req, res) => {
-    const postTitle = req.query.postTitle;
-    const query = { title: postTitle };
-    const result = await commentsCollection.find(query).toArray();
-    res.send(result);
+  app.get('/comment/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+      const post = await postCollection.findOne({ _id: new ObjectId(id) });
+
+      if (!post) {
+        return res.status(404).send('Post not found');
+      }
+
+      const comments = await commentsCollection.find({ postId: id }).toArray();
+
+      res.send({ post, comments });
+    } catch (error) {
+      console.error("Error fetching post or comments:", error);
+      res.status(500).send("Error fetching post or comments");
+    }
   });
+
+
+  
 
   // Stats or analytics
   app.get('/admin-stats',verifyToken,verifyAdmin,async(req,res)=>{
