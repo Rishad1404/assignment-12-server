@@ -32,6 +32,8 @@ async function run() {
     const announcementCollection = client.db('topicTalk').collection('announcements');
     const commentsCollection = client.db('topicTalk').collection('comments');
     const tagsCollection = client.db('topicTalk').collection('tags');
+    const reportCollection = client.db('topicTalk').collection('reports');
+
 
 
     // JWT token
@@ -284,8 +286,20 @@ async function run() {
     }
   });
 
+// Feedback related---------------------------------------------------------------------------------------------------------------------------------------
 
-  
+app.post('/reports', async (req, res) => {
+  const  report= req.body;
+  const result = await reportCollection.insertOne(report)
+  res.send(result)
+})
+app.get('/reports', async (req, res) => {
+  const result = await reportCollection.find().toArray();
+  res.send(result)
+})
+
+
+
 
   // Stats or analytics
   app.get('/admin-stats',verifyToken,verifyAdmin,async(req,res)=>{
