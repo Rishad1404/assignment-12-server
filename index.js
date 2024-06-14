@@ -92,29 +92,35 @@ async function run() {
       res.send({ clientSecret: client_secret })
     })
 
-    // User related--------------------------------------------------------------------------------------------------
-    app.put('/users', async (req, res) => {
-      const user = req.body;
-      const options = { upsert: true };
-      const query = { email: user?.email };
-      const existingUser = await usersCollection.findOne(query);
+    // User related----------------------------------------------------------------------------------------------------------------
+    app.put('/user', async (req, res) => {
+      const user = req.body
 
-      if (existingUser) {
-        if (user.badge === 'gold') {
-          const result = await usersCollection.updateOne(query, { $set: { badge: user?.badge } })
+      const query = { email: user?.email }
+      const isExist = await usersCollection.findOne(query)
+      if (isExist) {
+        if (user.status === 'Requested') {
+          const result = await usersCollection.updateOne(query, {
+            $set: { status: user?.status },
+          })
           return res.send(result)
+        } else {
+          return res.send(isExist)
         }
-      } else {
-        return res.send(existingUser)
       }
+
+
+      const options = { upsert: true }
       const updateDoc = {
         $set: {
           ...user,
-        }
+          timestamp: Date.now(),
+        },
       }
-      const result = await usersCollection.updateOne(query, updateDoc, options);
-      res.send(result);
-    });
+      const result = await usersCollection.updateOne(query, updateDoc, options)
+      res.send(result)
+    })
+
 
     app.get('/users/admin/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
@@ -296,6 +302,13 @@ app.post('/reports', async (req, res) => {
 app.get('/reports', async (req, res) => {
   const result = await reportCollection.find().toArray();
   res.send(result)
+})
+
+app.delete('/report/:id', async (req, res) => {
+  const id = req.params.id;
+  const query = { _id: new ObjectId(id) }
+  const result = await reportCollection.deleteOne(query);
+  res.send(result);
 })
 
 
