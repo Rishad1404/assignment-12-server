@@ -2,13 +2,27 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser')
 const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config()
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+};
+
 // MiddleWare
+const corsOptions = {
+  origin: ['http://localhost:5173','https://topic-talk-2b5cc.web.app'],
+  credentials: true,
+}
+
+
 app.use(cors())
 app.use(bodyParser.json());
 app.use(express.json())
@@ -213,15 +227,36 @@ async function run() {
 
 
     app.get('/posts', async (req, res) => {
-      const page = parseInt(req.query.page);
-      const size = parseInt(req.query.size);
+      const page = parseInt(req.query.page)
+      const size = parseInt(req.query.size) 
       const search = req.query.search;
+      const sortBy = req.query.sortBy;
+    
       const query = {
         postTag: { $regex: search, $options: 'i' }
+      };
+    
+      let sortCriteria = { time: -1 };
+    
+      if (sortBy === 'popularity') {
+        sortCriteria = { voteDifference: -1 };
       }
-      const result = await postCollection.find(query).skip(page * size).limit(size).toArray();
+    
+      const result = await postCollection.aggregate([
+        { $match: query },
+        {
+          $addFields: {
+            voteDifference: { $subtract: ["$upVote", "$downVote"] }
+          }
+        },
+        { $sort: sortCriteria },
+        { $skip: page * size },
+        { $limit: size }
+      ]).toArray();
+    
       res.send(result);
-    })
+    });
+    
 
     app.get('/post/:id', async (req, res) => {
       const id = req.params.id
@@ -330,10 +365,10 @@ app.delete('/report/:id', async (req, res) => {
 
 
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
